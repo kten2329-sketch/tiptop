@@ -1,0 +1,240 @@
+```html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Random Ký Tự</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .progress-bar {
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-2xl w-full mx-auto">
+        <main class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-5 sm:p-7 space-y-5">
+            
+            <!-- Input Area -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label for="inputText" class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-pen-to-square text-indigo-400 mr-1"></i> Văn bản gốc:
+                    </label>
+                    <button id="resetBtn" type="button" class="text-xs text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-rotate-left"></i> Đặt lại mặc định
+                    </button>
+                </div>
+                <textarea id="inputText" rows="2" 
+                    class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-100 text-sm font-medium transition-all resize-y focus:outline-none"
+                    placeholder="Nhập văn bản..."></textarea>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+                <button id="toggleAutoBtn" type="button" 
+                    class="w-full sm:w-2/3 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg transition duration-150 flex items-center justify-center gap-2 cursor-pointer">
+                    <i id="toggleIcon" class="fa-solid fa-pause"></i>
+                    <span id="toggleText">Đang Auto Random (3s) - Dừng</span>
+                </button>
+
+                <button id="processBtn" type="button" 
+                    class="w-full sm:w-1/3 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-lg transition duration-150 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-shuffle"></i>
+                    <span>Random Ngay</span>
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                <div id="progressBar" class="bg-indigo-500 h-full w-full progress-bar"></div>
+            </div>
+
+            <!-- Output Area -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label for="outputText" class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <i class="fa-solid fa-square-check text-emerald-400 mr-1"></i> Kết quả:
+                    </label>
+                    <button id="copyBtn" type="button" 
+                        class="px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Sao chép</span>
+                    </button>
+                </div>
+                <textarea id="outputText" rows="4" readonly 
+                    class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-emerald-300 text-base font-mono font-bold leading-relaxed resize-y focus:outline-none"
+                    placeholder="Kết quả..."></textarea>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 ease-out bg-slate-800 text-slate-100 border border-slate-700 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50 pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMsg" class="text-sm font-medium">Đã sao chép!</span>
+    </div>
+
+    <script>
+        const DEFAULT_TEXT = " CẦU CHỆT ỚT KHU PHỐ 3 ĐƯỜNG TRƯỜNG MẦM NON";
+
+        const inputTextEl = document.getElementById('inputText');
+        const outputTextEl = document.getElementById('outputText');
+        const processBtn = document.getElementById('processBtn');
+        const toggleAutoBtn = document.getElementById('toggleAutoBtn');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const toggleText = document.getElementById('toggleText');
+        const progressBar = document.getElementById('progressBar');
+        const copyBtn = document.getElementById('copyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        const toastIcon = document.getElementById('toastIcon');
+
+        let autoInterval = null;
+        let progressInterval = null;
+        let isAutoRunning = true;
+        const INTERVAL_TIME = 3000;
+        let elapsedTime = 0;
+
+        inputTextEl.value = DEFAULT_TEXT;
+
+        // Sinh chuỗi random từ chữ cái thường (a-z)
+        function generateRandomLetters(length) {
+            const charset = 'abcdefghijklmnopqrstuvwxyz';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+            return result;
+        }
+
+        function showToast(message, isSuccess = true) {
+            toastMsg.textContent = message;
+            toastIcon.className = isSuccess 
+                ? "fa-solid fa-circle-check text-emerald-400 text-lg" 
+                : "fa-solid fa-circle-exclamation text-amber-400 text-lg";
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+
+        function processText() {
+            const text = inputTextEl.value;
+
+            // Regex bắt các từ in hoa tiếng Việt HOẶC chữ số/từ đặc biệt
+            const wordRegex = /([A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴÝỶỸ0-9]+)/g;
+
+            const processedText = text.replace(wordRegex, (match) => {
+                const prefixLen = Math.floor(Math.random() * 2) + 2; // 2 hoặc 3 ký tự
+                const suffixLen = Math.floor(Math.random() * 2) + 2; // 2 hoặc 3 ký tự
+                
+                const prefix = generateRandomLetters(prefixLen);
+                const suffix = generateRandomLetters(suffixLen);
+
+                return prefix + match + suffix;
+            });
+
+            outputTextEl.value = processedText;
+        }
+
+        function startAutoLoop() {
+            stopAutoLoop();
+            isAutoRunning = true;
+            elapsedTime = 0;
+            progressBar.style.width = '100%';
+
+            toggleAutoBtn.className = "w-full sm:w-2/3 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg transition duration-150 flex items-center justify-center gap-2 cursor-pointer";
+            toggleIcon.className = "fa-solid fa-pause";
+            toggleText.textContent = "Đang Auto Random (3s) - Dừng";
+
+            autoInterval = setInterval(() => {
+                processText();
+                elapsedTime = 0;
+            }, INTERVAL_TIME);
+
+            progressInterval = setInterval(() => {
+                elapsedTime += 100;
+                const remainingPercent = Math.max(0, 100 - (elapsedTime / INTERVAL_TIME) * 100);
+                progressBar.style.width = remainingPercent + '%';
+            }, 100);
+        }
+
+        function stopAutoLoop() {
+            isAutoRunning = false;
+            clearInterval(autoInterval);
+            clearInterval(progressInterval);
+            progressBar.style.width = '0%';
+
+            toggleAutoBtn.className = "w-full sm:w-2/3 py-3 px-4 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-sm rounded-xl shadow-lg transition duration-150 flex items-center justify-center gap-2 cursor-pointer";
+            toggleIcon.className = "fa-solid fa-play";
+            toggleText.textContent = "Bật Auto Random (3s)";
+        }
+
+        toggleAutoBtn.addEventListener('click', () => {
+            if (isAutoRunning) {
+                stopAutoLoop();
+                showToast("Đã tạm dừng auto!", false);
+            } else {
+                processText();
+                startAutoLoop();
+                showToast("Đã bật tự động random 3s!");
+            }
+        });
+
+        processBtn.addEventListener('click', () => {
+            if (!inputTextEl.value.trim()) {
+                showToast("Vui lòng nhập văn bản!", false);
+                return;
+            }
+            processText();
+            if (isAutoRunning) {
+                startAutoLoop();
+            }
+            showToast("Đã random mới!");
+        });
+
+        copyBtn.addEventListener('click', () => {
+            if (!outputTextEl.value) {
+                showToast("Không có kết quả!", false);
+                return;
+            }
+            
+            outputTextEl.select();
+            try {
+                document.execCommand('copy');
+                showToast("Đã sao chép thành công!");
+            } catch (err) {
+                showToast("Lỗi sao chép!", false);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            inputTextEl.value = DEFAULT_TEXT;
+            processText();
+            if (isAutoRunning) startAutoLoop();
+            showToast("Đã khôi phục mặc định!");
+        });
+
+        // Bắt đầu ngay khi load xong
+        window.addEventListener('load', () => {
+            processText();
+            startAutoLoop();
+        });
+    </script>
+</body>
+</html>
+```
